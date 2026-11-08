@@ -1,0 +1,35 @@
+name: build-from-zip
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unzip project
+        run: |
+          ZIP=$(find . -maxdepth 1 -name "*.zip" | head -1)
+          echo "Using $ZIP"
+          unzip -q "$ZIP" -d _src
+          SRC=$(dirname "$(find _src -name build.gradle | head -1)")
+          echo "SRC=$SRC" >> $GITHUB_ENV
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.5
+      - name: Build
+        run: gradle build --no-daemon
+        working-directory: ${{ env.SRC }}
+      - name: Collect jar
+        run: |
+          mkdir out
+          cp ${{ env.SRC }}/build/libs/*.jar out/
+          rm -f out/*-sources.jar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cosmicfx-mod
+          path: out/*.jar
